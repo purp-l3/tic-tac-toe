@@ -23,7 +23,7 @@ public class GameSession extends Thread {
         for (int i = 0; i < 3; i++) {
             List<Character> row = new ArrayList<>();
             for (int j = 0; j < 3; j++) {
-                row.add(' ');
+                row.add(' '); 
             }
             board.add(row);
         }
@@ -34,10 +34,14 @@ public class GameSession extends Thread {
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 3; j++) {
                 boardString.append(" ").append(board.get(i).get(j)).append(" ");
-                if (j < 2) boardString.append("|");
+                if (j < 2) {
+                    boardString.append("|");
+                }
             }
             boardString.append("\n");
-            if (i < 2) boardString.append("---+---+---\n");
+            if (i < 2) {
+                boardString.append("---+---+---\n");
+            }
         }
         outputToPlayer1.println(boardString);
         outputToPlayer2.println(boardString);
@@ -50,12 +54,6 @@ public class GameSession extends Thread {
             outputToPlayer1 = new PrintWriter(player1.getOutputStream(), true);
             outputToPlayer2 = new PrintWriter(player2.getOutputStream(), true);
 
-            System.out.println("Game session started. IO streams created for both players.");
-
-            outputToPlayer1.println("Player 1 connected, you are X");
-            outputToPlayer2.println("Player 2 connected, you are O");
-            printBoardToPlayers();
-
             boolean player1Turn = true;
             while (true) {
                 if (player1Turn) {
@@ -66,31 +64,42 @@ public class GameSession extends Thread {
                     processPlayerMove(player2, outputToPlayer2, inputFromPlayer2, 'O');
                 }
                 player1Turn = !player1Turn;
-                if (isGameOver()) break;
+
+                if (isGameOver()) {
+                    outputToPlayer1.println("Game Over!");
+                    outputToPlayer2.println("Game Over!");
+                    break;
+                }
             }
         } catch (IOException e) {
             System.out.println("Error in game session: " + e.getMessage());
         } finally {
             closeSockets();
-            System.out.println("Game session ended.");
         }
     }
 
     private void processPlayerMove(Socket player, PrintWriter outputToPlayer, BufferedReader inputFromPlayer, char token) throws IOException {
         String move = inputFromPlayer.readLine();
         if (move != null) {
-            int row = Integer.parseInt(move.split(" ")[0]);
-            int col = Integer.parseInt(move.split(" ")[1]);
-            if (isValidMove(row, col)) {
-                board.get(row).set(col, token);
-                outputToPlayer.println("Valid move.");
-                printBoardToPlayers();
-                broadcastMove(player, move);
-            } else {
-                outputToPlayer.println("Invalid move, try again.");
+            try {
+                int row = Integer.parseInt(move.split(" ")[0]);
+                int col = Integer.parseInt(move.split(" ")[1]);
+                if (isValidMove(row, col)) {
+                    board.get(row).set(col, token);
+                    outputToPlayer.println("Valid move.");
+                    printBoardToPlayers();
+                    broadcastMove(player, move);
+                } else {
+                    outputToPlayer.println("Invalid move, try again.");
+                    processPlayerMove(player, outputToPlayer, inputFromPlayer, token);
+                }
+            } catch (NumberFormatException | ArrayIndexOutOfBoundsException e) {
+                outputToPlayer.println("Invalid input format. Please enter row and column as numbers.");
+                processPlayerMove(player, outputToPlayer, inputFromPlayer, token);
             }
         } else {
             outputToPlayer.println("No move received. Please make a move.");
+            processPlayerMove(player, outputToPlayer, inputFromPlayer, token);
         }
     }
 
@@ -107,18 +116,49 @@ public class GameSession extends Thread {
     }
 
     private boolean isGameOver() {
-        // check rows and columns for a win
+
+        // rows 
         for (int i = 0; i < 3; i++) {
             if (board.get(i).get(0) != ' ' && board.get(i).get(0) == board.get(i).get(1) && board.get(i).get(1) == board.get(i).get(2)) {
-                return true; 
-            }
-            if (board.get(0).get(i) != ' ' && board.get(0).get(i) == board.get(1).get(i) && board.get(1).get(i) == board.get(2).get(i)) {
-                return true; 
+                System.out.println("Winning condition met in row " + i);
+                return true;
             }
         }
-        System.out.println("isGameOver error");
-        return false;
+
+        // columns 
+        for (int j = 0; j < 3; j++) {
+            if (board.get(0).get(j) != ' ' && board.get(0).get(j) == board.get(1).get(j) && board.get(1).get(j) == board.get(2).get(j)) {
+                System.out.println("Winning condition met in column " + j);
+                return true;
+            }
+        }
+
+        // diagonal from top left to bottom right
+        if (board.get(0).get(0) != ' ' && board.get(0).get(0) == board.get(1).get(1) && board.get(1).get(1) == board.get(2).get(2)) {
+            System.out.println("Winning condition met in main diagonal");
+            return true;
+        }
+
+        // diagonal from top right to bottom left
+        if (board.get(0).get(2) != ' ' && board.get(0).get(2) == board.get(1).get(1) && board.get(1).get(1) == board.get(2).get(0)) {
+            System.out.println("Winning condition met in counter diagonal");
+            return true;
+        }
+
+        // draw check
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                if (board.get(i).get(j) == ' ') {
+                    System.out.println("No win and not a draw yet.");
+                    return false;  
+                }
+            }
+        }
+
+        System.out.println("The game is a draw.");
+        return true;
     }
+
 
     private void closeSockets() {
         try {
