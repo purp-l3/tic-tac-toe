@@ -6,6 +6,7 @@ public class TicTacToeServer {
         try (ServerSocket serverSocket = new ServerSocket(8000)) {
             System.out.println("Server ready for connections...");
             while (true) {
+                
                 Socket player1 = serverSocket.accept();
                 System.out.println("Player 1 connected");
                 Socket player2 = serverSocket.accept();

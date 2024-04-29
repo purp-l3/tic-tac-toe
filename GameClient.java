@@ -4,51 +4,58 @@ import java.util.Scanner;
 
 public class GameClient {
     private Socket socket;
-    private BufferedReader in;
     private PrintWriter out;
-    private Scanner scanner = new Scanner(System.in);
+    private BufferedReader in;
+    private Scanner scanner;
 
     public GameClient(String serverAddress, int serverPort) throws IOException {
         socket = new Socket(serverAddress, serverPort);
-        in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         out = new PrintWriter(socket.getOutputStream(), true);
-        System.out.println("Connected to game server at " + serverAddress + ":" + serverPort);
+        in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+        scanner = new Scanner(System.in);
+        System.out.println("Connected to the server at " + serverAddress + ":" + serverPort);
     }
 
     public void start() {
         try {
-            String serverMessage;
-            while ((serverMessage = in.readLine()) != null) {
-                System.out.println("Server: " + serverMessage);
-                if ("Your move".equals(serverMessage)) {
+            String fromServer;
+            while ((fromServer = in.readLine()) != null) {
+                System.out.println("Server says: " + fromServer);
+                if ("Your move".equals(fromServer)) {
                     System.out.print("Enter your move (row col): ");
-                    out.println(scanner.nextLine());
+                    String userMove = scanner.nextLine();
+                    out.println(userMove);
                 }
             }
         } catch (IOException e) {
-            System.out.println("Connection lost.");
+            System.out.println("Error communicating with the server: " + e.getMessage());
         } finally {
-            close();
+            closeEverything();
         }
     }
 
-    private void close() {
+    private void closeEverything() {
         try {
-            in.close();
-            out.close();
-            socket.close();
-            scanner.close();
-        } catch (IOException e) {
-            e.printStackTrace();
+            if (scanner != null) scanner.close();
+            if (out != null) out.close();
+            if (in != null) in.close();
+            if (socket != null) socket.close();
+        } catch (IOException ex) {
+            ex.printStackTrace();
         }
     }
 
     public static void main(String[] args) {
         try {
-            GameClient client = new GameClient("localhost", 8000);
+            Scanner IPinput = new Scanner(System.in);
+            String IP = new String();
+            System.out.print("enter IP (localhost if local): ");
+            IP = IPinput.nextLine();
+
+            GameClient client = new GameClient(IP, 8000);
             client.start();
         } catch (IOException e) {
-            System.out.println("Unable to connect to server.");
+            System.out.println("Unable to connect to server: " + e.getMessage());
             e.printStackTrace();
         }
     }
