@@ -2,6 +2,8 @@ import java.io.*;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
+import javax.swing.*;
+import java.awt.*;
 
 public class GameSession extends Thread {
     private Socket player1;
@@ -11,11 +13,14 @@ public class GameSession extends Thread {
     private PrintWriter outputToPlayer2;
     private BufferedReader inputFromPlayer1;
     private BufferedReader inputFromPlayer2;
+    private JFrame frame;
+    private JButton[][] buttons;
 
     public GameSession(Socket p1, Socket p2) {
         player1 = p1;
         player2 = p2;
         initializeBoard();
+        initializeGUI();
     }
 
     private void initializeBoard() {
@@ -29,22 +34,35 @@ public class GameSession extends Thread {
         }
     }
 
-    private void printBoardToPlayers() {
-        StringBuilder boardString = new StringBuilder("\n");
+    private void initializeGUI() {
+        frame = new JFrame("Tic Tac Toe");
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setSize(300, 300);
+        frame.setLayout(new GridLayout(3, 3));
+        frame.getContentPane().setBackground(Color.WHITE);
+
+        buttons = new JButton[3][3];
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 3; j++) {
-                boardString.append(" ").append(board.get(i).get(j)).append(" ");
-                if (j < 2) {
-                    boardString.append("|");
-                }
-            }
-            boardString.append("\n");
-            if (i < 2) {
-                boardString.append("---+---+---\n");
+                buttons[i][j] = new JButton();
+                buttons[i][j].setFont(new Font(Font.SANS_SERIF, Font.BOLD, 60));
+                buttons[i][j].setBackground(Color.WHITE);
+                buttons[i][j].setBorder(BorderFactory.createLineBorder(Color.BLACK, 2));
+                frame.add(buttons[i][j]);
             }
         }
-        outputToPlayer1.println(boardString);
-        outputToPlayer2.println(boardString);
+
+        frame.setVisible(true);
+    }
+
+    private void updateBoard() {
+        SwingUtilities.invokeLater(() -> {
+            for (int i = 0; i < 3; i++) {
+                for (int j = 0; j < 3; j++) {
+                    buttons[i][j].setText(Character.toString(board.get(i).get(j)));
+                }
+            }
+        });
     }
 
     public void run() {
@@ -65,11 +83,20 @@ public class GameSession extends Thread {
                 }
                 player1Turn = !player1Turn;
 
+                updateBoard();
+
                 if (isGameOver()) {
                     outputToPlayer1.println("Game Over!");
                     outputToPlayer2.println("Game Over!");
                     break;
                 }
+            }
+
+            // Keep the game window open after the game is over
+            try {
+                Thread.sleep(5000); // Delay for 5 seconds
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
         } catch (IOException e) {
             System.out.println("Error in game session: " + e.getMessage());
@@ -87,7 +114,6 @@ public class GameSession extends Thread {
                 if (isValidMove(row, col)) {
                     board.get(row).set(col, token);
                     outputToPlayer.println("Valid move.");
-                    printBoardToPlayers();
                     broadcastMove(player, move);
                 } else {
                     outputToPlayer.println("Invalid move, try again.");
@@ -116,7 +142,6 @@ public class GameSession extends Thread {
     }
 
     private boolean isGameOver() {
-
         // rows 
         for (int i = 0; i < 3; i++) {
             if (board.get(i).get(0) != ' ' && board.get(i).get(0) == board.get(i).get(1) && board.get(i).get(1) == board.get(i).get(2)) {
@@ -159,11 +184,11 @@ public class GameSession extends Thread {
         return true;
     }
 
-
     private void closeSockets() {
         try {
             if (player1 != null) player1.close();
             if (player2 != null) player2.close();
+            frame.dispose();
         } catch (IOException e) {
             System.out.println("Error closing sockets: " + e.getMessage());
         }
